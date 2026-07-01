@@ -1,0 +1,281 @@
+{
+  "defaultStyleId": "detailed",
+  "niches": [
+    {
+      "id": "dental",
+      "name": "Dental",
+      "regex": "dental|dentist"
+    },
+    {
+      "id": "fitness",
+      "name": "Fitness",
+      "regex": "gym|fitness|workout|crossfit|martial\\s*art"
+    },
+    {
+      "id": "real_estate",
+      "name": "Real Estate",
+      "regex": "real\\s*estate|realtor|property|realt"
+    },
+    {
+      "id": "restaurant",
+      "name": "Restaurant",
+      "regex": "restaurant|food|cafe|diner|eatery"
+    },
+    {
+      "id": "ecommerce",
+      "name": "E-commerce",
+      "regex": "e.?commerce|shopify|woocommerce|online\\s*store|ecom|dropship"
+    },
+    {
+      "id": "healthcare",
+      "name": "Healthcare",
+      "regex": "healthcare|medical|clinic|doctor|hospital"
+    },
+    {
+      "id": "legal",
+      "name": "Legal",
+      "regex": "law\\s*(firm|office)|lawyer|attorney|legal"
+    },
+    {
+      "id": "beauty",
+      "name": "Beauty & Wellness",
+      "regex": "spa|beauty|salon|medspa|aesthetics"
+    },
+    {
+      "id": "automotive",
+      "name": "Automotive",
+      "regex": "\\b(automotive|automobile)\\b|car\\s*(dealer|repair|wash)|\\bmechanic\\b"
+    },
+    {
+      "id": "pharmacy",
+      "name": "Pharmacy",
+      "regex": "pharmacy|drug\\s*store"
+    },
+    {
+      "id": "coaching",
+      "name": "Coaching",
+      "regex": "\\bcoach\\b|coaching|consultant|consulting"
+    },
+    {
+      "id": "saas_co",
+      "name": "SaaS",
+      "regex": "\\bsaas\\b|software\\s*(company|startup)"
+    },
+    {
+      "id": "home_svc",
+      "name": "Home Services",
+      "regex": "roofing|contractor|construction|plumb|electri"
+    },
+    {
+      "id": "finance",
+      "name": "Finance",
+      "regex": "insurance|mortgage|financial\\s*advi"
+    },
+    {
+      "id": "locksmith",
+      "name": "Locksmith",
+      "regex": "locksmith|lock\\s*(service|repair)"
+    }
+  ],
+  "intentLabels": [
+    {
+      "id": "crm_setup",
+      "label": "CRM setup",
+      "regex": "(set\\s*up|configure|build|create|setup).{0,20}(gohighlevel|ghl|crm)",
+      "priority": 1
+    },
+    {
+      "id": "ghl_auto",
+      "label": "GHL automation",
+      "regex": "(gohighlevel|ghl).{0,20}(automat|workflow|pipeline)",
+      "priority": 2
+    },
+    {
+      "id": "workflow",
+      "label": "Workflow automation",
+      "regex": "(automat|workflow|zapier|make\\.com|n8n|integrat)",
+      "priority": 3
+    },
+    {
+      "id": "meta_ads",
+      "label": "Meta Ads",
+      "regex": "(facebook|meta|fb)\\s*(ads?|campaign|marketing)",
+      "priority": 4
+    },
+    {
+      "id": "google_ads",
+      "label": "Google Ads",
+      "regex": "(google)\\s*(ads?|ppc|campaign|adwords)",
+      "priority": 5
+    },
+    {
+      "id": "landing_page",
+      "label": "Landing page",
+      "regex": "(landing\\s*page|opt.?in\\s*page|squeeze\\s*page)",
+      "priority": 6
+    },
+    {
+      "id": "brand",
+      "label": "Brand identity",
+      "regex": "(logo|brand\\s*identity|visual\\s*identity|branding)",
+      "priority": 7
+    },
+    {
+      "id": "web",
+      "label": "Website / web app",
+      "regex": "(web\\s*(design|dev|app|site)|website|wordpress|shopify)",
+      "priority": 8
+    },
+    {
+      "id": "seo",
+      "label": "SEO",
+      "regex": "(seo|search\\s*engine\\s*optim)",
+      "priority": 9
+    },
+    {
+      "id": "email_auto",
+      "label": "Email automation",
+      "regex": "(email\\s*(sequence|automat|market|campaign)|drip\\s*campaign)",
+      "priority": 10
+    },
+    {
+      "id": "a2p",
+      "label": "A2P / SMS setup",
+      "regex": "(a2p|10dlc|sms\\s*(verif|register|setup))",
+      "priority": 11
+    },
+    {
+      "id": "lead_gen",
+      "label": "Lead generation",
+      "regex": "(lead\\s*(gen|generation)|get\\s*(more\\s*)?(leads|clients|customers))",
+      "priority": 12
+    },
+    {
+      "id": "funnel",
+      "label": "Sales funnel",
+      "regex": "(sales\\s*funnel|funnel\\s*(build|design|create|setup))",
+      "priority": 13
+    },
+    {
+      "id": "appointment",
+      "label": "Appointment system",
+      "regex": "(appointment|booking|calendar|schedul)",
+      "priority": 14
+    },
+    {
+      "id": "social",
+      "label": "Social media",
+      "regex": "(social\\s*media|instagram|tiktok|content\\s*(creat|market))",
+      "priority": 15
+    },
+    {
+      "id": "creative",
+      "label": "Ad creatives",
+      "regex": "(ad\\s*creative|graphic\\s*design|creative\\s*(design|content))",
+      "priority": 16
+    },
+    {
+      "id": "pipeline",
+      "label": "Pipeline management",
+      "regex": "(pipeline|deal\\s*stage|contact\\s*manage)",
+      "priority": 17
+    },
+    {
+      "id": "nurture",
+      "label": "Nurture sequence",
+      "regex": "(nurture|follow.?up|automat.*sequence)",
+      "priority": 18
+    },
+    {
+      "id": "5d60cam",
+      "label": "GHL Snapshot/ Whitelabel",
+      "regex": "(snapshot|sub.?account|white\\s*label)",
+      "priority": 19
+    }
+  ],
+  "styles": [
+    {
+      "id": "detailed",
+      "name": "Detailed Proposal",
+      "description": "180–220 words. Hook + up to 3 proof blocks + CTA + assets.",
+      "wordMin": 180,
+      "wordMax": 220,
+      "maxProofBlocks": 3,
+      "hookTemplate": "You're looking for help with {label} and more — we've delivered all of this for {niche} businesses before. ",
+      "hookFallback": "Your project has {intent_count} moving parts — we've delivered each of them before.",
+      "proofBlockTemplate": "{label}: We {solution}. Result{niche_ref}: {results}.",
+      "ctaVariants": {
+        "default": "Want to see exactly how we'd handle your project? Let's connect.",
+        "proofSeeking": "Case studies and Loom recordings linked above. Want to connect and walk through the approach?",
+        "urgency": "We can start right away. Want to connect and align on scope?",
+        "budgetConscious": "Happy to share a clear scope and timeline. Want to connect?"
+      },
+      "includeAssets": true,
+      "enabled": true
+    },
+    {
+      "id": "short_pitch",
+      "name": "Short Pitch",
+      "description": "100–130 words. Hook + 1 proof block + CTA.",
+      "wordMin": 100,
+      "wordMax": 130,
+      "maxProofBlocks": 1,
+      "hookTemplate": "You need {label} for your {niche} business — we've done exactly this before.",
+      "hookFallback": "You need {label} — we've done exactly this before.",
+      "proofBlockTemplate": "{label}: We {solution}. Result{niche_ref}: {results}.",
+      "ctaVariants": {
+        "default": "Want to see exactly how we'd handle this? Let's connect.",
+        "proofSeeking": "Case study linked below. Want to connect and walk through the approach?",
+        "urgency": "We can start immediately. Want to connect and align on scope?",
+        "budgetConscious": "Happy to share a clear scope and timeline. Want to connect?"
+      },
+      "includeAssets": true,
+      "enabled": true
+    },
+    {
+      "id": "cover_letter",
+      "name": "Cover Letter",
+      "description": "150–180 words. Story-driven narrative format.",
+      "wordMin": 150,
+      "wordMax": 180,
+      "maxProofBlocks": 2,
+      "hookTemplate": "When I read your job post, I immediately thought of a similar project we completed for a {niche} client.",
+      "hookFallback": "Your project reminds me of a similar one we completed recently at TWS.",
+      "proofBlockTemplate": "For {client_niche}: We {solution}. The result was {results}.",
+      "ctaVariants": {
+        "default": "I'd love to walk you through our full approach. Happy to jump on a quick call.",
+        "proofSeeking": "I've linked our case studies above. Happy to walk through the details on a call.",
+        "urgency": "I'm available immediately and can walk you through the plan on a quick call.",
+        "budgetConscious": "I'd love to share a detailed scope and cost breakdown. Happy to jump on a call."
+      },
+      "includeAssets": true,
+      "enabled": true
+    },
+    {
+      "id": "cold_outreach",
+      "name": "Cold Outreach",
+      "description": "80–100 words. Pure value prop — for DMs and emails.",
+      "wordMin": 80,
+      "wordMax": 100,
+      "maxProofBlocks": 0,
+      "hookTemplate": "We specialize in {label} for {niche} businesses.",
+      "hookFallback": "We specialize in {label} for growing businesses.",
+      "proofBlockTemplate": "",
+      "ctaVariants": {
+        "default": "Would this be relevant for you? Happy to share our work.",
+        "proofSeeking": "Happy to send over some examples of our work.",
+        "urgency": "We can start immediately — would this be relevant for you?",
+        "budgetConscious": "We offer competitive rates. Would this be relevant for your business?"
+      },
+      "includeAssets": false,
+      "enabled": true
+    }
+  ],
+  "scoring": {
+    "avgScoreWeight": 0.45,
+    "maxScoreWeight": 0.3,
+    "frequencyBonusWeight": 0.25,
+    "frequencyBonusCap": 0.15,
+    "minScore": 30
+  }
+}
