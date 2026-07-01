@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import Logo from './Logo'
 
 export default function Navbar() {
   const path = usePathname()
@@ -14,9 +15,10 @@ export default function Navbar() {
 
   return (
     <nav style={{ background: '#0d1117', borderBottom: '1px solid #21262d' }} className="px-6 py-2.5 flex items-center gap-8">
-      <span className="font-bold text-sm tracking-tight text-slate-200">
-        TWS <span className="text-slate-400 font-normal">Proposals</span>
-      </span>
+      <Link href="/" className="flex items-center gap-2">
+        <Logo size={24} />
+        <span className="font-bold text-sm tracking-tight text-slate-200">BidFlow</span>
+      </Link>
       <div className="flex gap-1">
         {links.map((link) => (
           <Link
@@ -32,6 +34,9 @@ export default function Navbar() {
           </Link>
         ))}
       </div>
+      <span className="ml-auto text-[10px] font-semibold tracking-wide text-slate-600 uppercase">
+        Powered by TWS
+      </span>
     </nav>
   )
 }

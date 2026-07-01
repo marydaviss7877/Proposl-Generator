@@ -1,0 +1,18 @@
+<svg width="320" height="88" viewBox="0 0 320 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="4" y="4" width="80" height="80" rx="20" fill="url(#bidflow-logo-mark)" />
+  <path
+    d="M18 48C22 30 30 30 34 44C37 52 42 52 45 41L55 58L70 26"
+    stroke="white"
+    stroke-width="6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <text x="102" y="46" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#0f172a">BidFlow</text>
+  <text x="102" y="68" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="600" letter-spacing="1.5" fill="#64748b">POWERED BY TWS</text>
+  <defs>
+    <linearGradient id="bidflow-logo-mark" x1="4" y1="4" x2="84" y2="84" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3b82f6" />
+      <stop offset="1" stop-color="#4f46e5" />
+    </linearGradient>
+  </defs>
+</svg>
