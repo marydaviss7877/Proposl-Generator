@@ -1,4 +1,4 @@
-import { pipeline, cos_sim, env } from '@xenova/transformers'
+import { pipeline, cos_sim, env, type FeatureExtractionPipeline } from '@xenova/transformers'
 import { getAllCaseStudies, type CaseStudy } from './portfolio'
 import { loadEngineConfig, getStyleById, type EngineConfig, type ProposalStyle } from './engine'
 
@@ -10,11 +10,9 @@ if (process.env.MODEL_CACHE_PATH) {
 
 // ─── Embedding pipeline singleton ────────────────────────────────────────────
 
-type Extractor = Awaited<ReturnType<typeof pipeline>>
-
 class EmbeddingPipeline {
-  static instance: Extractor | null = null
-  static async get(): Promise<Extractor> {
+  static instance: FeatureExtractionPipeline | null = null
+  static async get(): Promise<FeatureExtractionPipeline> {
     if (!this.instance) {
       this.instance = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
         quantized: true,
