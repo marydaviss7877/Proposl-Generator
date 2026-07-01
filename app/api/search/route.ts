@@ -12,6 +12,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Query is required' }, { status: 400 })
   }
 
-  const response = await search(query.trim(), styleId || undefined)
-  return NextResponse.json(response)
+  try {
+    const response = await search(query.trim(), styleId || undefined)
+    return NextResponse.json(response)
+  } catch (err) {
+    console.error('[api/search] failed:', err)
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

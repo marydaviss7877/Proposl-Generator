@@ -95,7 +95,7 @@ export default function SearchPage() {
             <h1 className="text-2xl font-bold text-slate-100 tracking-tight">BidFlow</h1>
             <p className="text-slate-400 mt-1.5 text-sm">From query to bid — in one flow.</p>
             <p className="text-slate-600 mt-1 text-xs">
-              Every bid, backed by proof. <span className="text-slate-700">· Powered by TWS</span>
+              Every bid, backed by proof.
             </p>
             {/* Style picker */}
             <div className="flex justify-center gap-1.5 mt-4">

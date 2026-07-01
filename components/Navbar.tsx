@@ -17,7 +17,12 @@ export default function Navbar() {
     <nav style={{ background: '#0d1117', borderBottom: '1px solid #21262d' }} className="px-6 py-2.5 flex items-center gap-8">
       <Link href="/" className="flex items-center gap-2">
         <Logo size={24} />
-        <span className="font-bold text-sm tracking-tight text-slate-200">BidFlow</span>
+        <span className="flex flex-col leading-none">
+          <span className="font-bold text-sm tracking-tight text-slate-200">BidFlow</span>
+          <span className="text-[9px] font-semibold tracking-wide text-slate-600 uppercase">
+            Powered by TWS
+          </span>
+        </span>
       </Link>
       <div className="flex gap-1">
         {links.map((link) => (
@@ -34,9 +39,6 @@ export default function Navbar() {
           </Link>
         ))}
       </div>
-      <span className="ml-auto text-[10px] font-semibold tracking-wide text-slate-600 uppercase">
-        Powered by TWS
-      </span>
     </nav>
   )
 }
