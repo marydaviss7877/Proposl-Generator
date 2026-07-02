@@ -54,6 +54,12 @@ export default function SearchPage() {
         body: JSON.stringify({ query, styleId: selectedStyle }),
       })
       const json = await res.json()
+      if (!res.ok) {
+        setErrorMsg(json?.error || `Search failed (${res.status}).`)
+        setState('error')
+        setInputExpanded(true)
+        return
+      }
       setData(json)
       setState('done')
     } catch {
