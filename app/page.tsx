@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import ResultCard from '@/components/ResultCard'
-import type { SearchResult } from '@/lib/search'
+import type { SearchResult, TraceStep } from '@/lib/search'
 
 type State = 'idle' | 'loading' | 'done' | 'error'
 
@@ -12,6 +12,15 @@ interface SearchData {
   synthesizedProposal: string
   styleId: string
   total: number
+  trace?: TraceStep[]
+}
+
+interface Diagnostics {
+  status?: number
+  statusText?: string
+  elapsedMs: number
+  trace?: TraceStep[]
+  rawBody?: string
 }
 
 const STYLES = [
@@ -35,6 +44,9 @@ export default function SearchPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [proposalCopied, setProposalCopied] = useState(false)
   const [loadStep, setLoadStep] = useState(0)
+  const [elapsedMs, setElapsedMs] = useState(0)
+  const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null)
+  const [showDiagnostics, setShowDiagnostics] = useState(false)
   const [inputExpanded, setInputExpanded] = useState(true)
   const [selectedStyle, setSelectedStyle] = useState('detailed')
 
@@ -42,32 +54,53 @@ export default function SearchPage() {
     if (!query.trim()) return
     setState('loading')
     setLoadStep(0)
+    setElapsedMs(0)
     setErrorMsg('')
+    setDiagnostics(null)
+    setShowDiagnostics(false)
     setInputExpanded(false)
+    const startedAt = Date.now()
     const stepInterval = setInterval(() => {
       setLoadStep((s) => (s < LOAD_STEPS.length - 1 ? s + 1 : s))
     }, 900)
+    const elapsedInterval = setInterval(() => setElapsedMs(Date.now() - startedAt), 250)
     try {
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, styleId: selectedStyle }),
       })
-      const json = await res.json()
-      if (!res.ok) {
-        setErrorMsg(json?.error || `Search failed (${res.status}).`)
+      const elapsed = Date.now() - startedAt
+      // Read as text first — a proxy/crash error page (like Railway's 502) isn't
+      // valid JSON, and res.json() would throw before we ever see the status.
+      const rawText = await res.text()
+      let json: (SearchData & { error?: string; trace?: TraceStep[] }) | null = null
+      try { json = JSON.parse(rawText) } catch { /* backend returned a non-JSON error page */ }
+
+      if (!res.ok || !json) {
+        setDiagnostics({
+          status: res.status,
+          statusText: res.statusText,
+          elapsedMs: elapsed,
+          trace: json?.trace,
+          rawBody: json ? undefined : rawText.slice(0, 500),
+        })
+        setErrorMsg(json?.error || `Search failed (${res.status} ${res.statusText || ''}).`)
         setState('error')
         setInputExpanded(true)
         return
       }
+      setDiagnostics({ status: res.status, statusText: res.statusText, elapsedMs: elapsed, trace: json.trace })
       setData(json)
       setState('done')
-    } catch {
-      setErrorMsg('Search failed. Make sure the server is running.')
+    } catch (err) {
+      setDiagnostics({ elapsedMs: Date.now() - startedAt, rawBody: err instanceof Error ? err.message : String(err) })
+      setErrorMsg('Search failed — the request never got a response (network error or server unreachable).')
       setState('error')
       setInputExpanded(true)
     } finally {
       clearInterval(stepInterval)
+      clearInterval(elapsedInterval)
     }
   }
 
@@ -202,6 +235,24 @@ export default function SearchPage() {
                     </div>
                   ))}
                 </div>
+                {diagnostics?.trace && diagnostics.trace.length > 0 && (
+                  <>
+                    <button
+                      onClick={() => setShowDiagnostics(v => !v)}
+                      className="text-xs text-blue-400 hover:text-blue-300 mt-3"
+                    >
+                      {showDiagnostics ? 'Hide performance trace ▲' : 'Show performance trace ▼'}
+                    </button>
+                    {showDiagnostics && (
+                      <div className="mt-2 p-2.5 rounded-lg bg-black/30 font-mono text-[10px] text-slate-500 space-y-1 overflow-x-auto">
+                        <div>Total: {(diagnostics.elapsedMs / 1000).toFixed(2)}s</div>
+                        {diagnostics.trace.map((t, i) => (
+                          <div key={i}>· {t.label} — {t.ms}ms (rss {t.memMB}MB)</div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 
@@ -332,17 +383,49 @@ export default function SearchPage() {
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-slate-700 mt-4 pl-7">First run downloads the AI model (~80 MB)</p>
+                <p className="text-xs text-slate-700 mt-4 pl-7">
+                  {elapsedMs > 5000
+                    ? `Still working… ${(elapsedMs / 1000).toFixed(0)}s elapsed — this is longer than usual`
+                    : `Waiting on server… ${(elapsedMs / 1000).toFixed(1)}s`}
+                </p>
               </div>
             )}
 
             {state === 'error' && (
-              <div style={{ background: '#1c1217', border: '1px solid #4a2030' }} className="rounded-xl p-4 flex items-start gap-3">
-                <span className="text-red-500 shrink-0">⚠</span>
-                <div>
-                  <p className="text-sm font-semibold text-red-400">Search failed</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{errorMsg}</p>
+              <div style={{ background: '#1c1217', border: '1px solid #4a2030' }} className="rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-red-500 shrink-0">⚠</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-red-400">Search failed</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{errorMsg}</p>
+                    {diagnostics && (
+                      <button
+                        onClick={() => setShowDiagnostics(v => !v)}
+                        className="text-xs text-blue-400 hover:text-blue-300 mt-2"
+                      >
+                        {showDiagnostics ? 'Hide details ▲' : 'Show details ▼'}
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {diagnostics && showDiagnostics && (
+                  <div className="mt-3 p-3 rounded-lg bg-black/30 font-mono text-[11px] text-slate-400 space-y-1 overflow-x-auto">
+                    <div>HTTP status: {diagnostics.status ?? '—'} {diagnostics.statusText ?? ''}</div>
+                    <div>Elapsed: {(diagnostics.elapsedMs / 1000).toFixed(2)}s</div>
+                    {diagnostics.trace && diagnostics.trace.length > 0 && (
+                      <div className="pt-1 mt-1 border-t border-slate-800">
+                        {diagnostics.trace.map((t, i) => (
+                          <div key={i}>· {t.label} — {t.ms}ms (rss {t.memMB}MB)</div>
+                        ))}
+                      </div>
+                    )}
+                    {diagnostics.rawBody && (
+                      <div className="pt-1 mt-1 border-t border-slate-800 whitespace-pre-wrap break-all">
+                        Raw response: {diagnostics.rawBody}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -52,14 +52,27 @@ function studyToText(s: CaseStudy): string {
     .join(' ')
 }
 
+function rssMB(): number {
+  return Math.round(process.memoryUsage().rss / 1024 / 1024)
+}
+
 export async function buildIndex(): Promise<void> {
   // Guard against concurrent/stale rebuilds re-embedding the whole corpus at once.
   if (building) return building
   building = (async () => {
     const studies = await getAllCaseStudies()
-    index = await Promise.all(
-      studies.map(async (study) => ({ study, embedding: await embed(studyToText(study)) }))
-    )
+    // Embed one at a time (not Promise.all) — on the 500MB Railway box, running
+    // ~26 transformer inference passes concurrently is the single riskiest spot
+    // for an OOM kill. Sequential keeps peak memory to one inference at a time,
+    // and the per-study log line pinpoints exactly which one it died on.
+    const newIndex: IndexedStudy[] = []
+    for (let i = 0; i < studies.length; i++) {
+      const study = studies[i]
+      const embedding = await embed(studyToText(study))
+      newIndex.push({ study, embedding })
+      console.log(`[buildIndex] embedded ${i + 1}/${studies.length} (${study.id}) — rss ${rssMB()}MB`)
+    }
+    index = newIndex
     indexedAt = Date.now()
   })()
   try {
@@ -90,12 +103,30 @@ export interface SearchResult {
   proposalSnippet: string
 }
 
+export interface TraceStep {
+  label: string
+  ms: number
+  memMB: number
+}
+
 export interface SearchResponse {
   intents: string[]
   results: SearchResult[]
   synthesizedProposal: string
   styleId: string
   total: number
+  trace: TraceStep[]
+}
+
+// Carries whatever trace was collected up to the point of failure, so the API
+// route can hand it back to the browser instead of just a bare error message.
+export class SearchError extends Error {
+  trace: TraceStep[]
+  constructor(message: string, trace: TraceStep[]) {
+    super(message)
+    this.name = 'SearchError'
+    this.trace = trace
+  }
 }
 
 // ─── Layer 1: Intent Extraction ───────────────────────────────────────────────
@@ -445,28 +476,58 @@ function buildProposalSnippet(s: CaseStudy, intentText: string, cfg: EngineConfi
 // ─── Main search entry point ──────────────────────────────────────────────────
 
 export async function search(query: string, styleId?: string): Promise<SearchResponse> {
-  const stale = index.length === 0 || Date.now() - indexedAt > 5 * 60 * 1000
-  if (stale) await buildIndex()
-
-  const cfg   = loadEngineConfig()
-  const style = getStyleById(cfg, styleId)
-
-  if (index.length === 0) {
-    return { intents: [], results: [], synthesizedProposal: '', styleId: style.id, total: 0 }
+  const trace: TraceStep[] = []
+  const mark = (label: string, since: number) => {
+    const ms = Date.now() - since
+    trace.push({ label, ms, memMB: rssMB() })
+    console.log(`[search] ${label} — ${ms}ms, rss ${rssMB()}MB`)
   }
 
-  const intents       = extractIntents(query)
-  const searchTargets = intents.length > 0 ? intents : [query.trim().slice(0, MAX_QUERY_CHARS)]
+  try {
+    let t = Date.now()
+    const stale = index.length === 0 || Date.now() - indexedAt > 5 * 60 * 1000
+    if (stale) {
+      await buildIndex()
+      mark(`Built search index (${index.length} case studies)`, t)
+    } else {
+      mark('Reused cached search index', t)
+    }
 
-  const intentResults = await Promise.all(
-    searchTargets.map(async (intent) => ({
-      intent,
-      matches: await matchIntent(intent, 3),
-    }))
-  )
+    t = Date.now()
+    const cfg   = loadEngineConfig()
+    const style = getStyleById(cfg, styleId)
+    mark('Loaded engine config', t)
 
-  const results             = aggregateResults(intentResults, cfg, query, style)
-  const synthesizedProposal = synthesizeProposal(results, searchTargets, query, cfg, style)
+    if (index.length === 0) {
+      return { intents: [], results: [], synthesizedProposal: '', styleId: style.id, total: 0, trace }
+    }
 
-  return { intents: searchTargets, results, synthesizedProposal, styleId: style.id, total: index.length }
+    t = Date.now()
+    const intents       = extractIntents(query)
+    const searchTargets = intents.length > 0 ? intents : [query.trim().slice(0, MAX_QUERY_CHARS)]
+    mark(`Extracted ${searchTargets.length} requirement(s)`, t)
+
+    t = Date.now()
+    const intentResults = await Promise.all(
+      searchTargets.map(async (intent) => ({
+        intent,
+        matches: await matchIntent(intent, 3),
+      }))
+    )
+    mark('Ran semantic search', t)
+
+    t = Date.now()
+    const results = aggregateResults(intentResults, cfg, query, style)
+    mark(`Ranked ${results.length} match(es)`, t)
+
+    t = Date.now()
+    const synthesizedProposal = synthesizeProposal(results, searchTargets, query, cfg, style)
+    mark('Synthesized proposal', t)
+
+    return { intents: searchTargets, results, synthesizedProposal, styleId: style.id, total: index.length, trace }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    console.error('[search] failed:', err)
+    throw new SearchError(message, trace)
+  }
 }
