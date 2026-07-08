@@ -9,6 +9,19 @@ function isEmptyDir(dir) {
   return !fs.existsSync(dir) || fs.readdirSync(dir).length === 0
 }
 
+// In production, PORTFOLIO_PATH / ENGINE_PATH MUST point at the persistent
+// volume — otherwise every case study and engine edit made through the app is
+// written to the ephemeral container filesystem and silently lost on redeploy.
+if (process.env.NODE_ENV === 'production') {
+  const missing = ['PORTFOLIO_PATH', 'ENGINE_PATH'].filter((k) => !process.env[k])
+  if (missing.length > 0) {
+    console.warn(
+      `[seed-data] ⚠️  ${missing.join(' and ')} not set — runtime edits will NOT ` +
+      `persist across redeploys. Point these at the mounted volume (e.g. /data).`
+    )
+  }
+}
+
 const portfolioTarget = process.env.PORTFOLIO_PATH
 if (portfolioTarget) {
   const bundled = path.join(__dirname, '..', 'data', 'portfolio')

@@ -1,7 +1,7 @@
 // One-time import script — reads PDFs, DOCX, XLSX from the downloaded portfolio
 // and creates .md files in data/portfolio/
 //
-// Usage: node scripts/import-portfolio.js
+// Usage: PORTFOLIO_SOURCE="/path/to/TWS Portfolio" node scripts/import-portfolio.js
 
 const fs = require('fs')
 const path = require('path')
@@ -10,7 +10,11 @@ const mammoth = require('mammoth')
 const XLSX = require('xlsx')
 
 const PORTFOLIO_ROOT = path.join(__dirname, '..', 'data', 'portfolio')
-const SOURCE_ROOT = 'C:\\Users\\Super\\Downloads\\TWS Portfolio-20260623T191129Z-3-001\\TWS Portfolio'
+const SOURCE_ROOT = process.env.PORTFOLIO_SOURCE || process.argv[2]
+if (!SOURCE_ROOT) {
+  console.error('Set the source folder: PORTFOLIO_SOURCE="/path/to/TWS Portfolio" node scripts/import-portfolio.js')
+  process.exit(1)
+}
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 

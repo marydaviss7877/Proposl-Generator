@@ -83,12 +83,33 @@ export async function getCaseStudyById(id: string): Promise<CaseStudy | null> {
   return all.find((s) => s.id === id) ?? null
 }
 
+export class ValidationError extends Error {}
+
 export async function saveCaseStudy(
   data: Omit<CaseStudy, 'id' | 'dateAdded'>
 ): Promise<string> {
+  // Reject anything not in the fixed department set — otherwise a crafted
+  // department like "../../etc" escapes the portfolio dir via path.join.
+  if (!DEPARTMENTS.includes(data.department)) {
+    throw new ValidationError(`Invalid department: ${data.department}`)
+  }
+
   await ensureDirectories()
   const slug = slugify(data.title)
+  // slugify strips non-latin titles down to nothing → would write ".md".
+  if (!slug) {
+    throw new ValidationError('Title must contain at least one letter or number')
+  }
   const filePath = path.join(getPortfolioPath(), data.department, `${slug}.md`)
+
+  // Don't silently clobber an existing study with the same slug (data loss).
+  try {
+    await fs.access(filePath)
+    throw new ValidationError(`A case study with this title already exists in ${data.department}`)
+  } catch (err) {
+    if (err instanceof ValidationError) throw err
+    // ENOENT = free to write
+  }
 
   const frontmatter = {
     title: data.title,

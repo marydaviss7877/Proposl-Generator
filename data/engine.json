@@ -14,17 +14,17 @@
     {
       "id": "real_estate",
       "name": "Real Estate",
-      "regex": "real\\s*estate|realtor|property|realt"
+      "regex": "\\breal\\s*estate\\b|\\brealtor\\b|\\bproperty\\b|\\brealty\\b"
     },
     {
       "id": "restaurant",
       "name": "Restaurant",
-      "regex": "restaurant|food|cafe|diner|eatery"
+      "regex": "\\brestaurant\\b|\\bfood\\b|\\bcafe\\b|\\bdiner\\b|\\beatery\\b"
     },
     {
       "id": "ecommerce",
       "name": "E-commerce",
-      "regex": "e.?commerce|shopify|woocommerce|online\\s*store|ecom|dropship"
+      "regex": "\\be.?commerce\\b|\\bshopify\\b|\\bwoocommerce\\b|online\\s*store|\\becom\\b|\\bdropship"
     },
     {
       "id": "healthcare",
@@ -39,7 +39,7 @@
     {
       "id": "beauty",
       "name": "Beauty & Wellness",
-      "regex": "spa|beauty|salon|medspa|aesthetics"
+      "regex": "\\bspa\\b|\\bbeauty\\b|\\bsalon\\b|\\bmedspa\\b|\\baesthetics?\\b"
     },
     {
       "id": "automotive",
@@ -272,10 +272,10 @@
     }
   ],
   "scoring": {
-    "avgScoreWeight": 0.45,
-    "maxScoreWeight": 0.3,
-    "frequencyBonusWeight": 0.25,
-    "frequencyBonusCap": 0.15,
+    "avgScoreWeight": 0.25,
+    "maxScoreWeight": 0.45,
+    "frequencyBonusWeight": 0.3,
+    "frequencyBonusCap": 0.2,
     "minScore": 30
   }
 }

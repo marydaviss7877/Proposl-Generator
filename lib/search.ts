@@ -8,12 +8,21 @@ if (process.env.MODEL_CACHE_PATH) {
   env.cacheDir = './.cache/models'
 }
 
+// Keep peak memory low on the 500MB Railway box: single-threaded ORT so the
+// quantized model doesn't spin up a thread pool that blows the RAM ceiling.
+try {
+  const onnx = (env as { backends?: { onnx?: { wasm?: { numThreads?: number } } } }).backends?.onnx
+  if (onnx?.wasm) onnx.wasm.numThreads = 1
+} catch { /* backend not present — ignore */ }
+
 // ─── Embedding pipeline singleton ────────────────────────────────────────────
 
 class EmbeddingPipeline {
   static instance: FeatureExtractionPipeline | null = null
   static async get(): Promise<FeatureExtractionPipeline> {
     if (!this.instance) {
+      // `quantized: true` loads model_quantized.onnx (~23MB) instead of the
+      // ~90MB fp32 weights — required to fit inference inside 500MB of RAM.
       this.instance = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
         quantized: true,
       })
@@ -29,6 +38,7 @@ interface IndexedStudy {
 
 let index: IndexedStudy[] = []
 let indexedAt = 0
+let building: Promise<void> | null = null
 
 async function embed(text: string): Promise<number[]> {
   const extractor = await EmbeddingPipeline.get()
@@ -43,11 +53,20 @@ function studyToText(s: CaseStudy): string {
 }
 
 export async function buildIndex(): Promise<void> {
-  const studies = await getAllCaseStudies()
-  index = await Promise.all(
-    studies.map(async (study) => ({ study, embedding: await embed(studyToText(study)) }))
-  )
-  indexedAt = Date.now()
+  // Guard against concurrent/stale rebuilds re-embedding the whole corpus at once.
+  if (building) return building
+  building = (async () => {
+    const studies = await getAllCaseStudies()
+    index = await Promise.all(
+      studies.map(async (study) => ({ study, embedding: await embed(studyToText(study)) }))
+    )
+    indexedAt = Date.now()
+  })()
+  try {
+    await building
+  } finally {
+    building = null
+  }
 }
 
 export function getIndexSize(): number {
@@ -81,30 +100,51 @@ export interface SearchResponse {
 
 // ─── Layer 1: Intent Extraction ───────────────────────────────────────────────
 
-export function extractIntents(text: string): string[] {
-  const normalised = text.replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim()
+const MAX_QUERY_CHARS = 20_000
 
-  const sentences = normalised
-    .split(/(?<=[.!?])\s+/)
-    .map(s => s.trim())
-    .filter(Boolean)
+export function extractIntents(text: string): string[] {
+  // Hard cap so a giant paste can't drive the O(n) work (or the dedupe) wild.
+  const capped = text.slice(0, MAX_QUERY_CHARS)
+
+  // Split on line breaks and bullet glyphs FIRST — most Upwork posts enumerate
+  // requirements as a bullet/newline list with no terminal punctuation, so
+  // collapsing whitespace before splitting (the old bug) fused them into one blob.
+  const lines = capped
+    .split(/\r?\n+/)
+    .flatMap(line => line.split(/\s*[•·▪‣◦]\s*/))
 
   const chunks: string[] = []
-  for (const sentence of sentences) {
-    const parts = sentence.split(
-      /\s*,?\s*(?:and also|as well as|along with|additionally|also|plus|,)\s+(?=[a-z])/gi
-    )
-    chunks.push(...parts)
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/\s+/g, ' ').trim()
+    if (!line) continue
+
+    const sentences = line
+      .split(/(?<=[.!?])\s+/)
+      .map(s => s.trim())
+      .filter(Boolean)
+
+    for (const sentence of sentences) {
+      const parts = sentence.split(
+        /\s*,?\s*(?:and also|as well as|along with|additionally|also|plus|,)\s+(?=[a-z])/gi
+      )
+      chunks.push(...parts)
+    }
   }
 
-  return chunks
-    .map(c => c.trim().replace(/^[-–•*\d.]+\s*/, ''))
-    .filter(c => {
-      const words = c.split(/\s+/)
-      return words.length >= 4 && words.length <= 50
-    })
-    .filter((c, i, arr) => arr.indexOf(c) === i)
-    .slice(0, 10)
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const raw of chunks) {
+    // Strip leading list markers: -, –, —, •, *, "1.", "2)", "3]" etc.
+    const c = raw.trim().replace(/^[-–—•*]+\s*/, '').replace(/^\d+[.)\]]\s*/, '').trim()
+    const words = c.split(/\s+/).filter(Boolean)
+    if (words.length < 2 || words.length > 50) continue
+    const key = c.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(c)
+    if (out.length >= 12) break
+  }
+  return out
 }
 
 // ─── Layer 2: Per-Intent Search ───────────────────────────────────────────────
@@ -152,9 +192,10 @@ function extractClientContext(query: string, cfg: EngineConfig): ClientContext {
   }
   return {
     niche,
-    urgency:         /(asap|urgent|fast|quick|deadline|rush|immediately|right away)/i.test(query),
-    proofSeeking:    /(portfolio|example|sample|proof|past work|show me|case study|previous work)/i.test(query),
-    budgetConscious: /(budget|cheap|affordable|cost|rate|price|low.?cost)/i.test(query),
+    // \b guards prevent "breakfast"→fast, "integrate"→rate style false positives.
+    urgency:         /\b(asap|urgent|fast|quick|deadline|rush|immediately|right away)\b/i.test(query),
+    proofSeeking:    /\b(portfolio|example|sample|proof|past work|show me|case study|previous work)\b/i.test(query),
+    budgetConscious: /\b(budget|cheap|affordable|cost|rate|price|low.?cost)\b/i.test(query),
   }
 }
 
@@ -173,6 +214,12 @@ function cutAtSentence(text: string, maxChars: number): string {
   return (lastSpace > 0 ? w.slice(0, lastSpace) : w).replace(/[,;:]$/, '') + '.'
 }
 
+// Drop trailing sentence punctuation so templates that append their own "." don't
+// produce doubles ("...visibility..").
+function stripTail(text: string): string {
+  return text.replace(/[.!?]+\s*$/, '').trim()
+}
+
 // ─── Template renderer ────────────────────────────────────────────────────────
 
 function render(template: string, vars: Record<string, string>): string {
@@ -188,6 +235,10 @@ function aggregateResults(
   style: ProposalStyle
 ): SearchResult[] {
   const { avgScoreWeight, maxScoreWeight, frequencyBonusWeight, frequencyBonusCap, minScore } = cfg.scoring
+
+  // Normalise the final score against the best achievable raw value so the
+  // displayed "%" is meaningful (a perfect match lands near 100, not 79).
+  const maxPossible = maxScoreWeight + avgScoreWeight + frequencyBonusCap * frequencyBonusWeight || 1
 
   const map = new Map<string, { study: CaseStudy; scores: number[]; intents: IntentMatch[] }>()
 
@@ -208,10 +259,11 @@ function aggregateResults(
       const frequency = intents.length
       const maxRaw    = Math.max(...scores)
       const avgRaw    = scores.reduce((a, b) => a + b, 0) / scores.length
-      const freqBonus = Math.min(frequency / 4, frequencyBonusCap)
-      const finalScore = Math.round(
-        (avgRaw * avgScoreWeight + maxRaw * maxScoreWeight + freqBonus * frequencyBonusWeight) * 100
-      )
+      // (frequency - 1) so a single-intent match earns ZERO bonus (the old
+      // `frequency/4` saturated the cap at freq=1, making the term a constant).
+      const freqBonus = Math.min((frequency - 1) / 3, frequencyBonusCap)
+      const raw       = avgRaw * avgScoreWeight + maxRaw * maxScoreWeight + freqBonus * frequencyBonusWeight
+      const finalScore = Math.round((raw / maxPossible) * 100)
 
       const sortedIntents = [...intents].sort((a, b) => b.score - a.score)
 
@@ -232,6 +284,42 @@ function aggregateResults(
 
 // ─── Layer 4: Proposal Synthesis ─────────────────────────────────────────────
 
+function buildProofText(
+  result: SearchResult,
+  cfg: EngineConfig,
+  style: ProposalStyle
+): string {
+  if (!style.proofBlockTemplate) return ''
+
+  const intentText = result.matchedIntents[0]?.intentText ?? ''
+  const label      = intentToLabel(intentText, cfg)
+  const solution   = stripTail(cutAtSentence(result.study.solution, 130))
+  const outcome    = stripTail(cutAtSentence(result.study.results, 100))
+  if (!solution) return ''
+
+  let solText = solution.charAt(0).toLowerCase() + solution.slice(1)
+  solText = solText.replace(/^we\s+we\s+/i, 'we ')
+
+  const nRef  = result.study.clientNiche ? ` for a ${result.study.clientNiche} client` : ''
+  const block = render(style.proofBlockTemplate, {
+    label,
+    solution:     solText,
+    results:      outcome,
+    client_niche: result.study.clientNiche ?? '',
+    niche_ref:    nRef,
+  }).replace(/\s+/g, ' ').trim()
+
+  if (!block) return ''
+  return block.endsWith('.') ? block : block + '.'
+}
+
+function assetsFor(study: CaseStudy): string[] {
+  const out: string[] = []
+  if (study.loomLink)      out.push(`🎥 Loom — ${study.loomLink}`)
+  if (study.caseStudyLink) out.push(`📄 Case Study — ${study.caseStudyLink}`)
+  return out
+}
+
 function synthesizeProposal(
   results: SearchResult[],
   intents: string[],
@@ -241,78 +329,59 @@ function synthesizeProposal(
 ): string {
   if (results.length === 0) return ''
 
-  const ctx   = extractClientContext(query, cfg)
-  const parts: string[] = []
-  const usedStudyIds    = new Set<string>()
-  const usedSolutionKeys = new Set<string>()
-  const allAssets: string[] = []
+  const ctx = extractClientContext(query, cfg)
 
   // ── Hook ──────────────────────────────────────────────────────────────────
   const topIntentText = results[0].matchedIntents[0]?.intentText ?? intents[0] ?? ''
   const topLabel      = intentToLabel(topIntentText, cfg)
   const hookVars      = { label: topLabel, niche: ctx.niche, intent_count: String(intents.length) }
   const hookTpl       = ctx.niche ? style.hookTemplate : style.hookFallback
-  parts.push(render(hookTpl, hookVars))
+  const hook          = render(hookTpl, hookVars).replace(/\s+/g, ' ').trim()
 
-  // ── Proof blocks ──────────────────────────────────────────────────────────
+  // ── Proof blocks (each carries its own assets, so dropping a block drops its links too) ──
+  const usedStudyIds     = new Set<string>()
+  const usedSolutionKeys = new Set<string>()
+  const proofBlocks: Array<{ text: string; assets: string[] }> = []
+
   for (const result of results) {
-    if (usedStudyIds.size >= style.maxProofBlocks) break
+    if (proofBlocks.length >= style.maxProofBlocks) break
     if (usedStudyIds.has(result.study.id)) continue
-    if (!style.proofBlockTemplate) continue
 
-    const intentText = result.matchedIntents[0]?.intentText ?? ''
-    const label      = intentToLabel(intentText, cfg)
-    const solution   = cutAtSentence(result.study.solution, 130)
-    const outcome    = cutAtSentence(result.study.results,  100)
+    const text = buildProofText(result, cfg, style)
+    if (!text) continue
 
-    // Skip identical placeholder content
-    const solutionKey = solution.slice(0, 60).toLowerCase().replace(/\s+/g, ' ')
+    const solutionKey = text.slice(0, 60).toLowerCase().replace(/\s+/g, ' ')
     if (usedSolutionKeys.has(solutionKey)) continue
     usedSolutionKeys.add(solutionKey)
     usedStudyIds.add(result.study.id)
 
-    // Normalise: lowercase first char, remove double "We we"
-    let solText = solution.charAt(0).toLowerCase() + solution.slice(1)
-    solText = solText.replace(/^we\s+we\s+/i, 'we ')
-
-    const nRef   = result.study.clientNiche ? ` for a ${result.study.clientNiche} client` : ''
-    const block  = render(style.proofBlockTemplate, {
-      label,
-      solution:     solText,
-      results:      outcome,
-      client_niche: result.study.clientNiche ?? '',
-      niche_ref:    nRef,
-    })
-    const trimmedBlock = block.replace(/\s+/g, ' ').trim()
-    if (trimmedBlock) parts.push(trimmedBlock.endsWith('.') ? trimmedBlock : trimmedBlock + '.')
-
-    if (style.includeAssets) {
-      if (result.study.loomLink && !allAssets.some(a => a.includes(result.study.loomLink))) {
-        allAssets.push(`🎥 Loom — ${result.study.loomLink}`)
-      }
-      if (result.study.caseStudyLink && !allAssets.some(a => a.includes(result.study.caseStudyLink))) {
-        allAssets.push(`📄 Case Study — ${result.study.caseStudyLink}`)
-      }
-    }
+    proofBlocks.push({ text, assets: style.includeAssets ? assetsFor(result.study) : [] })
   }
 
   // ── CTA ───────────────────────────────────────────────────────────────────
   const ctaKey = ctx.proofSeeking ? 'proofSeeking' : ctx.urgency ? 'urgency' : ctx.budgetConscious ? 'budgetConscious' : 'default'
-  parts.push(style.ctaVariants[ctaKey])
+  const cta    = style.ctaVariants[ctaKey]
 
-  // ── Assets block at bottom ────────────────────────────────────────────────
-  if (allAssets.length > 0) parts.push(allAssets.join('\n'))
-
-  // ── Word limit — drop last proof block if over wordMax ────────────────────
-  const draft = parts.join('\n\n')
-  if (draft.split(/\s+/).length > style.wordMax && usedStudyIds.size > 1) {
-    const trimmed = [...parts]
-    // Remove the last proof block (index 1-based, after hook, before CTA/assets)
-    const proofEnd = parts.length - (allAssets.length > 0 ? 2 : 1)
-    if (proofEnd > 1) trimmed.splice(proofEnd - 1, 1)
-    return trimmed.join('\n\n')
+  const assemble = (blocks: Array<{ text: string; assets: string[] }>): string => {
+    const parts = [hook, ...blocks.map(b => b.text), cta]
+    const seen = new Set<string>()
+    const assets: string[] = []
+    for (const b of blocks) {
+      for (const a of b.assets) {
+        if (!seen.has(a)) { seen.add(a); assets.push(a) }
+      }
+    }
+    if (assets.length > 0) parts.push(assets.join('\n'))
+    return parts.filter(Boolean).join('\n\n')
   }
 
+  // ── Word cap — keep dropping the lowest-priority proof block until under wordMax ──
+  let blocks = proofBlocks
+  let draft = assemble(blocks)
+  while (draft.split(/\s+/).filter(Boolean).length > style.wordMax && blocks.length > 1) {
+    blocks = blocks.slice(0, -1)
+    draft = assemble(blocks)
+  }
   return draft
 }
 
@@ -333,25 +402,28 @@ function buildHighlights(fullQuery: string, s: CaseStudy): string[] {
   if (s.clientNiche && fullQuery.toLowerCase().includes(s.clientNiche.toLowerCase())) {
     points.push(`Niche match — emphasise your ${s.clientNiche} experience specifically`)
   }
-  if (/(fast|quick|urgent|asap|deadline|rush)/i.test(fullQuery)) points.push('Client is time-sensitive — mention turnaround speed')
-  if (/(budget|cheap|affordable|cost|rate)/i.test(fullQuery))     points.push('Client is price-conscious — lead with ROI, not price')
-  if (/(portfolio|example|proof|past work|show me)/i.test(fullQuery)) points.push('Client wants proof — lead with case study and Loom')
+  if (/\b(fast|quick|urgent|asap|deadline|rush)\b/i.test(fullQuery)) points.push('Client is time-sensitive — mention turnaround speed')
+  if (/\b(budget|cheap|affordable|cost|rate)\b/i.test(fullQuery))     points.push('Client is price-conscious — lead with ROI, not price')
+  if (/\b(portfolio|example|proof|past work|show me)\b/i.test(fullQuery)) points.push('Client wants proof — lead with case study and Loom')
   if (s.loomLink)      points.push('Send the Loom — video builds trust faster than text')
   if (s.caseStudyLink) points.push('Attach the case study PDF to stand out from other bids')
   return points
 }
 
 function buildProposalSnippet(s: CaseStudy, intentText: string, cfg: EngineConfig, style: ProposalStyle): string {
-  if (!style.proofBlockTemplate) return ''
   const label    = intentToLabel(intentText, cfg)
-  const solution = cutAtSentence(s.solution, 130)
-  const outcome  = cutAtSentence(s.results,  100)
+  const solution = stripTail(cutAtSentence(s.solution, 130))
+  const outcome  = stripTail(cutAtSentence(s.results, 100))
   const nRef     = s.clientNiche ? ` for a ${s.clientNiche} client` : ''
 
   let solText = solution.charAt(0).toLowerCase() + solution.slice(1)
   solText = solText.replace(/^we\s+we\s+/i, 'we ')
 
-  let snippet = render(style.proofBlockTemplate, {
+  // Styles with no proof template (Cold Outreach) still get a usable snippet
+  // instead of an empty clipboard copy.
+  const template = style.proofBlockTemplate || '{label}: We {solution}. Result{niche_ref}: {results}.'
+
+  let snippet = render(template, {
     label,
     solution:     solText,
     results:      outcome,
@@ -384,7 +456,7 @@ export async function search(query: string, styleId?: string): Promise<SearchRes
   }
 
   const intents       = extractIntents(query)
-  const searchTargets = intents.length > 0 ? intents : [query.trim()]
+  const searchTargets = intents.length > 0 ? intents : [query.trim().slice(0, MAX_QUERY_CHARS)]
 
   const intentResults = await Promise.all(
     searchTargets.map(async (intent) => ({
