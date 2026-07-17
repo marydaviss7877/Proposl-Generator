@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthorizeUrl } from '@/lib/upwork/client'
-import { STATE_COOKIE } from '@/lib/upwork/constants'
+import { STATE_COOKIE, getPublicOrigin } from '@/lib/upwork/constants'
 
 export const runtime = 'nodejs'
 
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     authorizeUrl = getAuthorizeUrl(crypto.randomBytes(24).toString('hex'))
   } catch (err) {
     console.error('[api/auth/upwork] not configured:', err)
-    const dest = new URL('/', req.nextUrl.origin)
+    const dest = new URL('/', getPublicOrigin(req))
     dest.searchParams.set('upwork', 'error')
     dest.searchParams.set('msg', 'Upwork integration is not configured yet (missing client credentials).')
     return NextResponse.redirect(dest)

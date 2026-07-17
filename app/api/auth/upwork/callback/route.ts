@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { exchangeCodeForToken } from '@/lib/upwork/client'
 import { storeTokenResponse } from '@/lib/upwork/tokens'
-import { STATE_COOKIE } from '@/lib/upwork/constants'
+import { STATE_COOKIE, getPublicOrigin } from '@/lib/upwork/constants'
 
 export const runtime = 'nodejs'
 
@@ -20,15 +20,15 @@ export async function GET(req: NextRequest) {
   const cookieState = req.cookies.get(STATE_COOKIE)?.value
 
   if (!code || !state || !cookieState || state !== cookieState) {
-    return redirectHome(req.nextUrl.origin, 'error', 'Invalid or expired authorization request — please try connecting again.')
+    return redirectHome(getPublicOrigin(req), 'error', 'Invalid or expired authorization request — please try connecting again.')
   }
 
   try {
     const tokenResponse = await exchangeCodeForToken(code)
     await storeTokenResponse(tokenResponse)
-    return redirectHome(req.nextUrl.origin, 'connected')
+    return redirectHome(getPublicOrigin(req), 'connected')
   } catch (err) {
     console.error('[api/auth/upwork/callback] token exchange failed:', err)
-    return redirectHome(req.nextUrl.origin, 'error', 'Failed to connect to Upwork — check server logs.')
+    return redirectHome(getPublicOrigin(req), 'error', 'Failed to connect to Upwork — check server logs.')
   }
 }
