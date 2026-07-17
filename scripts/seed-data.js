@@ -9,15 +9,16 @@ function isEmptyDir(dir) {
   return !fs.existsSync(dir) || fs.readdirSync(dir).length === 0
 }
 
-// In production, PORTFOLIO_PATH / ENGINE_PATH MUST point at the persistent
-// volume — otherwise every case study and engine edit made through the app is
-// written to the ephemeral container filesystem and silently lost on redeploy.
+// In production, PORTFOLIO_PATH / ENGINE_PATH / UPWORK_TOKEN_PATH MUST point at
+// the persistent volume — otherwise every case study/engine edit AND the
+// Upwork OAuth tokens are written to the ephemeral container filesystem and
+// silently lost on redeploy (forcing a re-authorization through Upwork).
 if (process.env.NODE_ENV === 'production') {
-  const missing = ['PORTFOLIO_PATH', 'ENGINE_PATH'].filter((k) => !process.env[k])
+  const missing = ['PORTFOLIO_PATH', 'ENGINE_PATH', 'UPWORK_TOKEN_PATH'].filter((k) => !process.env[k])
   if (missing.length > 0) {
     console.warn(
-      `[seed-data] ⚠️  ${missing.join(' and ')} not set — runtime edits will NOT ` +
-      `persist across redeploys. Point these at the mounted volume (e.g. /data).`
+      `[seed-data] ⚠️  ${missing.join(', ')} not set — runtime edits (and/or the ` +
+      `Upwork connection) will NOT persist across redeploys. Point these at the mounted volume (e.g. /data).`
     )
   }
 }

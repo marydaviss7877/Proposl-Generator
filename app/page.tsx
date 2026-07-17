@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import ResultCard from '@/components/ResultCard'
+import UpworkSearchPanel from '@/components/UpworkSearchPanel'
 import type { SearchResult, TraceStep } from '@/lib/search'
 
 type State = 'idle' | 'loading' | 'done' | 'error'
@@ -49,6 +50,23 @@ export default function SearchPage() {
   const [showDiagnostics, setShowDiagnostics] = useState(false)
   const [inputExpanded, setInputExpanded] = useState(true)
   const [selectedStyle, setSelectedStyle] = useState('detailed')
+  const [upworkBanner, setUpworkBanner] = useState<{ kind: 'connected' | 'error'; msg: string } | null>(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const upworkStatus = params.get('upwork')
+    if (upworkStatus === 'connected') {
+      setUpworkBanner({ kind: 'connected', msg: 'Upwork connected — you can now search job postings directly.' })
+    } else if (upworkStatus === 'error') {
+      setUpworkBanner({ kind: 'error', msg: params.get('msg') || 'Failed to connect to Upwork.' })
+    }
+    if (upworkStatus) {
+      params.delete('upwork')
+      params.delete('msg')
+      const qs = params.toString()
+      window.history.replaceState({}, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname)
+    }
+  }, [])
 
   const runSearch = async () => {
     if (!query.trim()) return
@@ -127,6 +145,19 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen" style={{ background: '#0d1117' }}>
       <div className={`mx-auto px-4 py-8 transition-all duration-300 ${isDone ? 'max-w-7xl' : 'max-w-2xl'}`}>
+
+        {/* ── Upwork connect/error banner ── */}
+        {upworkBanner && (
+          <div
+            className="mb-4 px-4 py-2.5 rounded-xl text-xs flex items-center justify-between gap-3"
+            style={upworkBanner.kind === 'connected'
+              ? { background: '#052e16', border: '1px solid #166534', color: '#4ade80' }
+              : { background: '#1c1217', border: '1px solid #4a2030', color: '#f87171' }}
+          >
+            <span>{upworkBanner.msg}</span>
+            <button onClick={() => setUpworkBanner(null)} className="opacity-60 hover:opacity-100">✕</button>
+          </div>
+        )}
 
         {/* ── Header (idle only) ── */}
         {!isDone && !isLoading && (
@@ -325,6 +356,8 @@ export default function SearchPage() {
         ) : (
           /* ══ IDLE / LOADING / ERROR ══ */
           <div className="space-y-3">
+            {!isLoading && <UpworkSearchPanel onSelectJob={setQuery} />}
+
             <div style={{ background: '#161b22', border: '1px solid #30363d' }} className="rounded-xl overflow-hidden">
               <div style={{ background: '#0d1117', borderBottom: '1px solid #30363d' }} className="px-4 py-2 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-slate-700" />
