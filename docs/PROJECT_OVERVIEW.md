@@ -1,14 +1,14 @@
 # BidFlow — Project Overview
 
-*Powered by TWS. Internal tool. Last updated 2026-07-02.*
+*Powered by Aura Nest. Internal tool. Last updated 2026-07-02.*
 
 ---
 
 ## 1. What This Project Is
 
-BidFlow is an internal tool that turns a pasted **Upwork job post** into a ready-to-send **proposal**, backed by evidence from TWS's own past work.
+BidFlow is an internal tool that turns a pasted **Upwork job post** into a ready-to-send **proposal**, backed by evidence from Aura Nest's own past work.
 
-TWS is a multi-discipline service agency running four departments — Creative, Development, Marketing, SaaS — and bidding for client work primarily through Upwork. The team's portfolio of past wins (case studies, results, Loom walkthroughs, PDFs) was scattered across Google Drive, which made it slow and inconsistent to write a strong, evidence-backed proposal for every new job post. Every proposal was written from scratch, remembering (or forgetting) which past project was the best proof point for a given ask.
+Aura Nest is a multi-discipline service agency running four departments — Creative, Development, Marketing, SaaS — and bidding for client work primarily through Upwork. The team's portfolio of past wins (case studies, results, Loom walkthroughs, PDFs) was scattered across Google Drive, which made it slow and inconsistent to write a strong, evidence-backed proposal for every new job post. Every proposal was written from scratch, remembering (or forgetting) which past project was the best proof point for a given ask.
 
 BidFlow fixes that by centralizing the portfolio in one searchable place and automating the match between "what this client is asking for" and "what we've already proven we can do."
 
@@ -39,7 +39,7 @@ This was a deliberate Phase-1 choice, not an oversight: the portfolio is edited 
 
 ## 4. Use Case
 
-**Primary and only use case today: internal Upwork proposal writing at TWS.**
+**Primary and only use case today: internal Upwork proposal writing at Aura Nest.**
 
 A team member has an Upwork job post open. They:
 1. Paste the job post text into BidFlow's search box.
@@ -66,7 +66,7 @@ interface CaseStudy {
   clientNiche: string           // e.g. "E-commerce / Dropshipping"
   platform: string              // "Upwork" | "Fiverr" | "Facebook" | "Direct"
   problem: string                // client's original challenge (free text)
-  solution: string               // what TWS delivered (free text)
+  solution: string               // what Aura Nest delivered (free text)
   results: string                 // metrics / outcomes (free text)
   tags: string[]                 // keywords, boosts matching accuracy
   assets: string[]               // e.g. ["case_study", "loom", "images", "slides"]
@@ -233,7 +233,7 @@ These aren't committed — they're gaps and opportunities visible from the curre
 - No authentication — anyone with access to the deployed URL can view/edit the portfolio and engine config. Fine for a small internal team, worth reconsidering if the team grows.
 - No database — scales fine for tens of case studies, would need rethinking well before hundreds.
 - Proposal text is 100% template-driven — quality is bounded by how well each case study's Problem/Solution/Results fields are written, not by any generative model.
-- Single environment, single tenant — this is explicitly a TWS-internal Upwork tool, not a multi-client SaaS product.
+- Single environment, single tenant — this is explicitly an Aura Nest-internal Upwork tool, not a multi-client SaaS product.
 
 ---
 

@@ -1,7 +1,7 @@
-# TWS Proposal Generator — Requirements Document
+# Aura Nest Proposal Generator — Requirements Document
 
 **Project:** Smart Portfolio Matcher & Proposal Generator  
-**Owner:** CEO, TWS  
+**Owner:** CEO, Aura Nest  
 **Services:** Marketing, SaaS, Design, Development  
 **Platforms:** Upwork, Fiverr, Facebook, Direct  
 **Last Updated:** 2026-06-23  
@@ -11,7 +11,7 @@
 
 ## 1. Problem Statement
 
-When a client sends a query or job post, the CEO needs to quickly find the most relevant past work from TWS portfolio and craft a targeted proposal. Currently portfolio data is scattered across Google Drive (PDFs, images, PPTs, Loom recordings) making it slow and inconsistent to reference during proposal writing.
+When a client sends a query or job post, the CEO needs to quickly find the most relevant past work from Aura Nest's portfolio and craft a targeted proposal. Currently portfolio data is scattered across Google Drive (PDFs, images, PPTs, Loom recordings) making it slow and inconsistent to reference during proposal writing.
 
 ---
 
@@ -49,7 +49,7 @@ Build a hosted web app (Railway) where:
   - `Client Niche` — e.g. E-commerce, Real Estate, SaaS Startup
   - `Platform` — Upwork / Fiverr / Facebook / Direct
   - `Problem` — What the client came with (free text)
-  - `Solution` — What TWS delivered (free text)
+  - `Solution` — What Aura Nest delivered (free text)
   - `Results` — Metrics and outcomes (free text)
   - `Tags` — Keywords for better matching (comma-separated)
   - `Case Study Link` — Google Drive link to PDF/PPT/images

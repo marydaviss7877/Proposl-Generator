@@ -240,7 +240,7 @@
       "wordMax": 180,
       "maxProofBlocks": 2,
       "hookTemplate": "When I read your job post, I immediately thought of a similar project we completed for a {niche} client.",
-      "hookFallback": "Your project reminds me of a similar one we completed recently at TWS.",
+      "hookFallback": "Your project reminds me of a similar one we completed recently at Aura Nest.",
       "proofBlockTemplate": "For {client_niche}: We {solution}. The result was {results}.",
       "ctaVariants": {
         "default": "I'd love to walk you through our full approach. Happy to jump on a quick call.",

@@ -20,7 +20,7 @@ export default function Navbar() {
         <span className="flex flex-col leading-none">
           <span className="font-bold text-sm tracking-tight text-slate-200">BidFlow</span>
           <span className="text-[9px] font-semibold tracking-wide text-slate-600 uppercase">
-            Powered by TWS
+            Powered by Aura Nest
           </span>
         </span>
       </Link>

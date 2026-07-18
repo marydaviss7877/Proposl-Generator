@@ -147,7 +147,7 @@ export default function PortfolioForm({ onSaved }: { onSaved: () => void }) {
         <textarea
           value={form.solution}
           onChange={(e) => set('solution', e.target.value)}
-          placeholder="What did TWS deliver?"
+          placeholder="What did Aura Nest deliver?"
           rows={3}
           className={`${inputCls} resize-none`}
         />
